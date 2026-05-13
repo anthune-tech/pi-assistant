@@ -314,36 +314,54 @@ class LocalAIApp(ctk.CTk):
         self.chat_frame.grid_columnconfigure(0, weight=1)
         self.chat_frame.grid_rowconfigure(0, weight=1)
         self.chat_frame.grid_rowconfigure(1, weight=0)
+        self.chat_frame.grid_rowconfigure(2, weight=0)
 
-        self.chat_box = ctk.CTkTextbox(self.chat_frame, state="disabled", wrap="word", font=("Ubuntu", 18))
-        self.chat_box.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        self.chat_box = ctk.CTkTextbox(self.chat_frame, state="disabled", wrap="word", font=("Ubuntu", 17))
+        self.chat_box.grid(row=0, column=0, padx=3, pady=3, sticky="nsew")
 
         input_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
-        input_frame.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
+        input_frame.grid(row=1, column=0, padx=3, pady=3, sticky="ew")
         input_frame.grid_columnconfigure(0, weight=1)
+        input_frame.grid_rowconfigure(0, weight=0)
+        input_frame.grid_rowconfigure(1, weight=0)
 
-        self.entry = ctk.CTkEntry(input_frame, placeholder_text="Message...", font=my_font, height=45)
+        entry_send = ctk.CTkFrame(input_frame, fg_color="transparent")
+        entry_send.grid(row=0, column=0, sticky="ew")
+        entry_send.grid_columnconfigure(0, weight=1)
+
+        self.entry = ctk.CTkEntry(entry_send, placeholder_text="Message...", font=my_font, height=40)
         self.entry.grid(row=0, column=0, sticky="ew")
         self.entry.bind("<Return>", lambda e: self.send_message())
+        self.entry.bind("<FocusIn>", lambda e: self.auto_show_keyboard())
+        self.entry.bind("<KeyPress>", lambda e: self.reset_kb_timer())
 
-        btn_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
-        btn_frame.grid(row=1, column=0, pady=3, sticky="ew")
-        btn_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
+        send_btn = ctk.CTkButton(entry_send, text="Send", width=60, height=40, font=("Inter", 14), command=self.send_message)
+        send_btn.grid(row=0, column=1, padx=(3, 0))
 
-        ctk.CTkButton(btn_frame, text="Send", height=40, font=my_font, command=self.send_message).grid(row=0, column=0, padx=1, sticky="ew")
-        self.voice_btn = ctk.CTkButton(btn_frame, text="Mic (Hold)", height=40, font=my_font)
+        # Floating round mic button (above send button area)
+        self.mic_frame = ctk.CTkFrame(entry_send, fg_color="transparent", width=0, height=0)
+        self.mic_frame.grid(row=0, column=2, padx=(3, 0))
+        self.voice_btn = ctk.CTkButton(self.mic_frame, text="Mic", width=44, height=44,
+                                       font=("Inter", 11, "bold"), corner_radius=22, fg_color="#1F6AA5",
+                                       hover_color="#144870")
         self.voice_btn.bind("<ButtonPress-1>", self.on_mic_press)
         self.voice_btn.bind("<ButtonRelease-1>", self.on_mic_release)
-        self.voice_btn.grid(row=0, column=1, padx=1, sticky="ew")
-        self.lang_btn = ctk.CTkButton(btn_frame, text="Lang: EN", height=40, font=my_font, command=self.toggle_language)
-        self.lang_btn.grid(row=0, column=2, padx=1, sticky="ew")
-        ctk.CTkButton(btn_frame, text="KB", height=40, font=my_font, command=self.toggle_keyboard).grid(row=0, column=3, padx=1, sticky="ew")
-        ctk.CTkButton(btn_frame, text="Clear", height=40, font=my_font, command=self.clear_chat).grid(row=0, column=4, padx=1, sticky="ew")
+        self.voice_btn.pack()
+
+        btn_frame = ctk.CTkFrame(input_frame, fg_color="transparent")
+        btn_frame.grid(row=1, column=0, pady=(3, 0), sticky="ew")
+        btn_frame.grid_columnconfigure((0, 1, 2), weight=1)
+
+        self.lang_btn = ctk.CTkButton(btn_frame, text="EN", height=35, font=("Inter", 13), command=self.toggle_language)
+        self.lang_btn.grid(row=0, column=0, padx=1, sticky="ew")
+        ctk.CTkButton(btn_frame, text="KB", height=35, font=("Inter", 13), command=self.toggle_keyboard).grid(row=0, column=1, padx=1, sticky="ew")
+        ctk.CTkButton(btn_frame, text="Clear", height=35, font=("Inter", 13), command=self.clear_chat).grid(row=0, column=2, padx=1, sticky="ew")
 
         # On-screen keyboard
         self.osk_frame_ui = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
         self.setup_button_osk()
         self.osk_visible = False
+        self.kb_timer_id = None
 
         # --- DASHBOARD TAB ---
         self.dash_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
@@ -490,18 +508,44 @@ class LocalAIApp(ctk.CTk):
                 self.entry.delete(len(cur)-1, "end")
         elif key == "Clear":
             self.entry.delete(0, "end")
+        elif key == "Send":
+            self.send_message()
+            return
         elif key == "Space":
             self.entry.insert(len(cur), " ")
         else:
             self.entry.insert(len(cur), key)
+        self.reset_kb_timer()
 
     def toggle_keyboard(self):
         if self.osk_visible:
+            self.hide_keyboard()
+        else:
+            self.show_keyboard()
+
+    def show_keyboard(self):
+        if not self.osk_visible:
+            self.osk_frame_ui.grid(row=2, column=0, sticky="ew", padx=3, pady=3)
+            self.osk_visible = True
+            self.reset_kb_timer()
+
+    def hide_keyboard(self):
+        if self.osk_visible:
             self.osk_frame_ui.grid_forget()
             self.osk_visible = False
-        else:
-            self.osk_frame_ui.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
-            self.osk_visible = True
+            if self.kb_timer_id:
+                self.after_cancel(self.kb_timer_id)
+                self.kb_timer_id = None
+
+    def auto_show_keyboard(self, event=None):
+        if not self.osk_visible:
+            self.show_keyboard()
+
+    def reset_kb_timer(self, event=None):
+        if self.kb_timer_id:
+            self.after_cancel(self.kb_timer_id)
+        if self.osk_visible:
+            self.kb_timer_id = self.after(60000, self.hide_keyboard)
 
     def toggle_language(self):
         self.lang_index = (self.lang_index + 1) % len(self.languages)
@@ -525,6 +569,7 @@ class LocalAIApp(ctk.CTk):
             "quotations": (self.quote_frame, self.tab_quote_btn),
             "projects": (self.proj_frame, self.tab_proj_btn),
         }
+        self.hide_keyboard()
         frame, btn = targets.get(tab, (self.chat_frame, self.tab_chat_btn))
         frame.grid(row=0, column=0, sticky="nsew")
         btn.configure(fg_color="#2B5797")
@@ -850,6 +895,7 @@ class LocalAIApp(ctk.CTk):
         self.entry.delete(0, "end")
         self.append_to_chat("You", text)
         self.set_ai_status("Processing...", "#00BFFF")
+        self.hide_keyboard()
 
         if self.current_tab != "chat":
             self.switch_tab("chat")
@@ -1193,7 +1239,7 @@ class LocalAIApp(ctk.CTk):
         if self.is_recording:
             return
         self.is_recording = True
-        self.voice_btn.configure(text="Recording...", fg_color="red")
+        self.voice_btn.configure(text="REC", fg_color="red", hover_color="#CC0000")
         self.set_ai_status("Recording...", "#FF0000")
         self.mic_wav_file = f"/tmp/voice_{time.time()}.wav"
         self.parecord_process = subprocess.Popen(["parecord", "--format=s16le", "--rate=16000", "--channels=1", self.mic_wav_file], stderr=subprocess.DEVNULL)
@@ -1203,7 +1249,7 @@ class LocalAIApp(ctk.CTk):
         if not self.is_recording:
             return
         self.is_recording = False
-        self.voice_btn.configure(text="Mic (Hold)", fg_color=["#3B8ED0", "#1F6AA5"])
+        self.voice_btn.configure(text="Mic", fg_color="#1F6AA5", hover_color="#144870")
         self.set_ai_status("Processing audio...", "#FF4500")
         if self.parecord_process:
             self.parecord_process.terminate()
