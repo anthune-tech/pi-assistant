@@ -1,0 +1,4 @@
+customtkinter
+llama-cpp-python
+SpeechRecognition
+pyaudio

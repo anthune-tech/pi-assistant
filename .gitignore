@@ -1,0 +1,8 @@
+models/
+venv/
+__pycache__/
+*.gguf
+*.gguf.*
+*.onnx
+*.wav
+debug_log.txt
