@@ -1,0 +1,17 @@
+[Unit]
+Description=PI Assistant - Local AI Personal Assistant
+After=graphical-session.target
+BindsTo=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/libertine-launch -i localai /home/phablet/Documents/local_ai_v1/venv/bin/python3 /home/phablet/Documents/local_ai_v1/app.py
+WorkingDirectory=/home/phablet/Documents/local_ai_v1
+Restart=on-failure
+RestartSec=15
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/32011
+
+[Install]
+WantedBy=graphical-session.target
